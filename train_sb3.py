@@ -164,6 +164,67 @@ def evaluate_sb3(algorithm='PPO', model_path=None, n_episodes=10, render=False):
     return mean_reward, std_reward
 
 
+def demo_sb3(algorithm='PPO', model_path=None):
+    """
+    Demo mode - runs continuously until Ctrl+C
+    Similar to original A3C demo
+    """
+    # Default model path
+    if model_path is None:
+        model_path = f'models_sb3/{algorithm.lower()}_mspacman_final'
+    
+    if not os.path.exists(model_path + '.zip'):
+        print(f"Model not found: {model_path}.zip")
+        print("Please train first with: python train_sb3.py --mode train")
+        return
+    
+    print(f"\n{'='*50}")
+    print(f"Demo: {algorithm} playing Ms. Pac-Man")
+    print(f"Press Ctrl+C to stop")
+    print(f"{'='*50}\n")
+    
+    # Load model
+    if algorithm.upper() == 'PPO':
+        model = PPO.load(model_path)
+    else:
+        model = A2C.load(model_path)
+    
+    # Create environment with human rendering
+    env = DummyVecEnv([lambda: make_atari_env('human')])
+    env = VecFrameStack(env, n_stack=4)
+    
+    episode = 0
+    total_rewards = []
+    
+    try:
+        while True:
+            episode += 1
+            obs = env.reset()
+            episode_reward = 0
+            done = False
+            steps = 0
+            
+            while not done:
+                action, _ = model.predict(obs, deterministic=True)
+                obs, reward, done, info = env.step(action)
+                episode_reward += reward[0]
+                steps += 1
+                done = done[0]
+            
+            total_rewards.append(episode_reward)
+            avg_reward = np.mean(total_rewards)
+            print(f"Episode {episode}: Reward = {episode_reward:.0f} | Avg = {avg_reward:.1f} | Steps = {steps}")
+            
+    except KeyboardInterrupt:
+        print(f"\n\n{'='*50}")
+        print(f"Demo stopped after {episode} episodes")
+        print(f"Average reward: {np.mean(total_rewards):.1f}")
+        print(f"Best reward: {np.max(total_rewards):.0f}")
+        print(f"{'='*50}")
+    
+    env.close()
+
+
 def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gameplay.gif', max_steps=2000):
     """Record gameplay from SB3 model"""
     try:
@@ -246,7 +307,7 @@ def main():
     elif args.mode == 'eval':
         evaluate_sb3(args.algorithm, n_episodes=args.episodes)
     elif args.mode == 'demo':
-        evaluate_sb3(args.algorithm, n_episodes=1, render=True)
+        demo_sb3(args.algorithm)
     elif args.mode == 'record':
         record_sb3(args.algorithm, output_path=args.output)
 
