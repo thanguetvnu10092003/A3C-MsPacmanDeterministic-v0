@@ -1,6 +1,6 @@
 """
 Benchmark and Compare Different RL Algorithms
-Compares: Custom A3C vs Stable-Baselines3 (PPO, A2C)
+Compares: Custom A3C vs Stable-Baselines3 (PPO, A2C, DQN)
 """
 
 import os
@@ -57,7 +57,7 @@ def evaluate_custom_a3c(n_episodes=10):
 def evaluate_sb3(algorithm='PPO', n_episodes=10):
     """Evaluate Stable-Baselines3 model"""
     try:
-        from stable_baselines3 import PPO, A2C
+        from stable_baselines3 import PPO, A2C, DQN
         from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
         from stable_baselines3.common.atari_wrappers import AtariWrapper
         import gymnasium as gym
@@ -76,8 +76,10 @@ def evaluate_sb3(algorithm='PPO', n_episodes=10):
     # Load model
     if algorithm.upper() == 'PPO':
         model = PPO.load(model_path)
-    else:
+    elif algorithm.upper() == 'A2C':
         model = A2C.load(model_path)
+    else:
+        model = DQN.load(model_path)
     
     # Create environment
     def make_env():
@@ -153,6 +155,14 @@ def run_benchmark(n_episodes=10, output_file='benchmark_results.json'):
     if a2c_results:
         results['algorithms']['SB3_A2C'] = a2c_results
         print(f"Mean: {a2c_results['mean']:.1f} ± {a2c_results['std']:.1f}")
+    
+    # Test DQN
+    print("\n📊 Evaluating Stable-Baselines3 DQN...")
+    print("-" * 40)
+    dqn_results = evaluate_sb3('DQN', n_episodes)
+    if dqn_results:
+        results['algorithms']['SB3_DQN'] = dqn_results
+        print(f"Mean: {dqn_results['mean']:.1f} ± {dqn_results['std']:.1f}")
     
     # Print comparison table
     print("\n" + "="*60)

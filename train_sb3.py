@@ -1,12 +1,12 @@
 """
 Stable-Baselines3 Training Script for Ms. Pac-Man
-Compare PPO, A2C algorithms with custom A3C implementation
+Compare PPO, A2C, DQN algorithms with custom A3C implementation
 """
 
 import os
 import argparse
 import numpy as np
-from stable_baselines3 import PPO, A2C
+from stable_baselines3 import PPO, A2C, DQN
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines3.common.atari_wrappers import AtariWrapper
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
@@ -98,6 +98,24 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             verbose=1,
             tensorboard_log='logs'
         )
+    elif algorithm.upper() == 'DQN':
+        model = DQN(
+            'CnnPolicy',
+            env,
+            learning_rate=1e-4,
+            buffer_size=100000,
+            learning_starts=10000,
+            batch_size=32,
+            tau=1.0,
+            gamma=0.99,
+            train_freq=4,
+            gradient_steps=1,
+            target_update_interval=1000,
+            exploration_fraction=0.1,
+            exploration_final_eps=0.01,
+            verbose=1,
+            tensorboard_log='logs'
+        )
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
     
@@ -146,8 +164,10 @@ def evaluate_sb3(algorithm='PPO', model_path=None, n_episodes=10, render=False):
     # Load model
     if algorithm.upper() == 'PPO':
         model = PPO.load(model_path)
-    else:
+    elif algorithm.upper() == 'A2C':
         model = A2C.load(model_path)
+    else:
+        model = DQN.load(model_path)
     
     # Create environment
     render_mode = 'human' if render else 'rgb_array'
@@ -186,8 +206,10 @@ def demo_sb3(algorithm='PPO', model_path=None):
     # Load model
     if algorithm.upper() == 'PPO':
         model = PPO.load(model_path)
-    else:
+    elif algorithm.upper() == 'A2C':
         model = A2C.load(model_path)
+    else:
+        model = DQN.load(model_path)
     
     # Create environment with human rendering
     env = DummyVecEnv([lambda: make_atari_env('human')])
@@ -245,8 +267,10 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
     # Load model
     if algorithm.upper() == 'PPO':
         model = PPO.load(model_path)
-    else:
+    elif algorithm.upper() == 'A2C':
         model = A2C.load(model_path)
+    else:
+        model = DQN.load(model_path)
     
     # Create environment
     env = DummyVecEnv([lambda: make_atari_env('rgb_array')])
@@ -290,7 +314,7 @@ def main():
                         choices=['train', 'eval', 'record', 'demo'],
                         help='Mode: train, eval, record, or demo')
     parser.add_argument('--algorithm', type=str, default='PPO', 
-                        choices=['PPO', 'A2C'],
+                        choices=['PPO', 'A2C', 'DQN'],
                         help='Algorithm to use')
     parser.add_argument('--timesteps', type=int, default=100000,
                         help='Total training timesteps')
