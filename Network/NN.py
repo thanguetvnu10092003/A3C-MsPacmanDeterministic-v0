@@ -9,11 +9,10 @@ class Network(nn.Module):
     Optimized for 4GB GPU with better exploration capabilities
     """
 
-    def __init__(self, action_size, input_channels=4):
+    def __init__(self, action_size, input_channels=4, input_size=42):
         super(Network, self).__init__()
         
         # Convolutional layers with Batch Normalization
-        # Designed for 84x84 or 42x42 input (will work with both)
         self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=32, kernel_size=8, stride=4)
         self.bn1 = nn.BatchNorm2d(32)
         
@@ -25,13 +24,15 @@ class Network(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        # Calculate flattened size dynamically
-        # For 42x42 input: after convs -> approximately 64 * 2 * 2 = 256
-        # For 84x84 input: after convs -> approximately 64 * 7 * 7 = 3136
-        self._fc_input_size = None
+        # Calculate flattened size based on input size
+        # For 42x42: conv1 -> 9x9, conv2 -> 3x3, conv3 -> 1x1 = 64
+        # For 84x84: conv1 -> 20x20, conv2 -> 9x9, conv3 -> 7x7 = 3136
+        dummy_input = torch.zeros(1, input_channels, input_size, input_size)
+        dummy_output = self._forward_conv(dummy_input)
+        fc_input_size = dummy_output.shape[1]
         
         # Fully connected layers - moderate size for 4GB GPU
-        self.fc1 = None  # Will be initialized on first forward pass
+        self.fc1 = nn.Linear(fc_input_size, 512)
         self.fc2 = nn.Linear(512, 256)
         
         # Actor head (policy)
@@ -43,7 +44,7 @@ class Network(nn.Module):
         # Dropout for regularization
         self.dropout = nn.Dropout(0.2)
 
-    def _get_conv_output(self, x):
+    def _forward_conv(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
@@ -51,16 +52,7 @@ class Network(nn.Module):
 
     def forward(self, state):
         # Convolutional layers with batch norm and ReLU
-        x = F.relu(self.bn1(self.conv1(state)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        
-        x = self.flatten(x)
-        
-        # Initialize fc1 dynamically based on input size
-        if self.fc1 is None:
-            self._fc_input_size = x.shape[1]
-            self.fc1 = nn.Linear(self._fc_input_size, 512).to(x.device)
+        x = self._forward_conv(state)
         
         # Fully connected layers
         x = F.relu(self.fc1(x))
