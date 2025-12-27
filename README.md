@@ -106,11 +106,59 @@ Models are saved automatically:
 | 7 | DOWNRIGHT |
 | 8 | DOWNLEFT |
 
-## 📚 References
+## � Algorithm Comparison (Stable-Baselines3)
+
+Compare custom A3C with industry-standard implementations:
+
+### Install SB3
+
+```bash
+pip install stable-baselines3[extra]
+```
+
+### Train PPO or A2C
+
+```bash
+# Train with PPO
+python train_sb3.py --mode train --algorithm PPO --timesteps 100000 --envs 8
+
+# Train with A2C
+python train_sb3.py --mode train --algorithm A2C --timesteps 100000 --envs 8
+```
+
+### Evaluate SB3 Models
+
+```bash
+# Demo mode
+python train_sb3.py --mode demo --algorithm PPO
+
+# Record gameplay
+python train_sb3.py --mode record --algorithm PPO --output recordings/ppo_gameplay.gif
+```
+
+### Run Benchmark
+
+```bash
+# Compare all algorithms (Custom A3C, PPO, A2C)
+python benchmark.py --episodes 10
+```
+
+This will output a comparison table like:
+
+```
+Algorithm            Mean        Std        Min        Max
+------------------------------------------------------------
+Custom_A3C           850.0      120.5      680.0     1100.0
+SB3_PPO             1200.0      150.3      950.0     1450.0
+SB3_A2C              980.0      130.2      780.0     1200.0
+```
+
+## �📚 References
 
 - [Asynchronous Methods for Deep Reinforcement Learning](https://arxiv.org/abs/1602.01783) (Mnih et al., 2016)
 - [OpenAI Gymnasium](https://gymnasium.farama.org/)
 - [Arcade Learning Environment](https://github.com/Farama-Foundation/Arcade-Learning-Environment)
+- [Stable-Baselines3](https://stable-baselines3.readthedocs.io/)
 
 ## 📝 License
 
