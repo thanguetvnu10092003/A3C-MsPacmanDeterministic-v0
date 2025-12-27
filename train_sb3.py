@@ -34,11 +34,9 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
         n_envs: Number of parallel environments
         save_dir: Base directory to save models
     """
-    # Create algorithm-specific directory
+    # Create algorithm-specific directory (all files go here)
     algo_save_dir = os.path.join(save_dir, algorithm.upper())
-    algo_log_dir = os.path.join('logs', algorithm.upper())
     os.makedirs(algo_save_dir, exist_ok=True)
-    os.makedirs(algo_log_dir, exist_ok=True)
     
     print(f"\n{'='*50}")
     print(f"Training {algorithm} on Ms. Pac-Man")
@@ -56,7 +54,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
     eval_env = DummyVecEnv([lambda: make_atari_env()])
     eval_env = VecFrameStack(eval_env, n_stack=4)
     
-    # Callbacks - save to algorithm-specific directory
+    # Callbacks - everything saves to algo_save_dir
     checkpoint_callback = CheckpointCallback(
         save_freq=10000 // n_envs,
         save_path=algo_save_dir,
@@ -66,7 +64,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path=algo_save_dir,
-        log_path=algo_log_dir,
+        log_path=algo_save_dir,  # Evaluation logs also go here
         eval_freq=5000 // n_envs,
         n_eval_episodes=5,
         deterministic=True
@@ -86,7 +84,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             clip_range=0.1,
             ent_coef=0.01,
             verbose=1,
-            tensorboard_log=algo_log_dir
+            tensorboard_log=algo_save_dir
         )
     elif algorithm.upper() == 'A2C':
         model = A2C(
@@ -100,7 +98,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             vf_coef=0.5,
             max_grad_norm=0.5,
             verbose=1,
-            tensorboard_log=algo_log_dir
+            tensorboard_log=algo_save_dir
         )
     elif algorithm.upper() == 'DQN':
         model = DQN(
@@ -118,7 +116,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             exploration_fraction=0.1,
             exploration_final_eps=0.01,
             verbose=1,
-            tensorboard_log=algo_log_dir
+            tensorboard_log=algo_save_dir
         )
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
