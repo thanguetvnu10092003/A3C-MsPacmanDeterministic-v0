@@ -1,7 +1,7 @@
 from utils.Training import TrainingModel
 from utils.Make_Env import make_env
 from Network.Agent import Agent
-from utils.Render_model import render_agent_performance
+from utils.Render_model import render_agent_performance, record_agent_performance
 from utils.Load_model import load_model
 import os
 import argparse
@@ -9,8 +9,8 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description='A3C Ms. Pac-Man Training and Evaluation')
-    parser.add_argument('--mode', type=str, default='demo', choices=['train', 'demo'],
-                        help='Mode: train (training) or demo (run saved model)')
+    parser.add_argument('--mode', type=str, default='demo', choices=['train', 'demo', 'record'],
+                        help='Mode: train, demo (live view), or record (save video/gif)')
     parser.add_argument('--epochs', type=int, default=100001,
                         help='Number of training epochs')
     parser.add_argument('--envs', type=int, default=8,
@@ -19,6 +19,10 @@ def main():
                         help='Load model from specific training step')
     parser.add_argument('--load-best', action='store_true',
                         help='Load the best performing model')
+    parser.add_argument('--output', type=str, default='recordings/gameplay.gif',
+                        help='Output path for recording (.gif or .mp4)')
+    parser.add_argument('--max-steps', type=int, default=2000,
+                        help='Maximum steps to record')
     args = parser.parse_args()
 
     os.makedirs("models", exist_ok=True)
@@ -48,23 +52,41 @@ def main():
         training_model.train(agent)
         
     elif args.mode == 'demo':
-        # Load model
-        if args.load_best:
-            loaded_agent = load_model(agent, best=True)
-        elif args.load_step:
-            loaded_agent = load_model(agent, step=args.load_step)
-        else:
-            # Try to load best model by default
-            loaded_agent = load_model(agent, best=True)
-            if loaded_agent is None:
-                loaded_agent = load_model(agent)  # Try final model
-        
+        loaded_agent = _load_agent(agent, args)
         if loaded_agent is None:
-            print("No trained model found! Please train first with: python main.py --mode train")
             return
             
         render_env = make_env('human')
         render_agent_performance(loaded_agent, render_env)
+        
+    elif args.mode == 'record':
+        loaded_agent = _load_agent(agent, args)
+        if loaded_agent is None:
+            return
+        
+        # Use rgb_array mode for recording
+        record_env = make_env('rgb_array')
+        record_agent_performance(loaded_agent, record_env, 
+                                 output_path=args.output, 
+                                 max_steps=args.max_steps)
+
+
+def _load_agent(agent, args):
+    """Helper to load agent with proper fallbacks"""
+    if args.load_best:
+        loaded_agent = load_model(agent, best=True)
+    elif args.load_step:
+        loaded_agent = load_model(agent, step=args.load_step)
+    else:
+        # Try to load best model by default
+        loaded_agent = load_model(agent, best=True)
+        if loaded_agent is None:
+            loaded_agent = load_model(agent)  # Try final model
+    
+    if loaded_agent is None:
+        print("No trained model found! Please train first with: python main.py --mode train")
+    
+    return loaded_agent
 
 
 if __name__ == '__main__':
