@@ -86,7 +86,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             clip_range=0.1,
             ent_coef=0.01,
             verbose=1,
-            tensorboard_log='logs'
+            tensorboard_log=algo_log_dir
         )
     elif algorithm.upper() == 'A2C':
         model = A2C(
@@ -100,7 +100,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             vf_coef=0.5,
             max_grad_norm=0.5,
             verbose=1,
-            tensorboard_log='logs'
+            tensorboard_log=algo_log_dir
         )
     elif algorithm.upper() == 'DQN':
         model = DQN(
@@ -118,7 +118,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
             exploration_fraction=0.1,
             exploration_final_eps=0.01,
             verbose=1,
-            tensorboard_log='logs'
+            tensorboard_log=algo_log_dir
         )
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
