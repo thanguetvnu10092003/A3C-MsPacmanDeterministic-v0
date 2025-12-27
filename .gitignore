@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyTorch models (comment out if you want to track models)
+# models/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
