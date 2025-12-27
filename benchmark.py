@@ -67,10 +67,16 @@ def evaluate_sb3(algorithm='PPO', n_episodes=10):
         print("Stable-Baselines3 not installed! Run: pip install stable-baselines3[extra]")
         return None
     
-    model_path = f'models_sb3/{algorithm.lower()}_mspacman_final'
+    # Try best_model first, then final_model
+    best_path = f'models_sb3/{algorithm.upper()}/best_model'
+    final_path = f'models_sb3/{algorithm.upper()}/final_model'
     
-    if not os.path.exists(model_path + '.zip'):
-        print(f"{algorithm} model not found!")
+    if os.path.exists(best_path + '.zip'):
+        model_path = best_path
+    elif os.path.exists(final_path + '.zip'):
+        model_path = final_path
+    else:
+        print(f"{algorithm} model not found in models_sb3/{algorithm.upper()}/")
         return None
     
     # Load model

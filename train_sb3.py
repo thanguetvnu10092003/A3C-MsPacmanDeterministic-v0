@@ -29,19 +29,23 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
     Train using Stable-Baselines3
     
     Args:
-        algorithm: 'PPO' or 'A2C'
+        algorithm: 'PPO', 'A2C', or 'DQN'
         total_timesteps: Total training steps
         n_envs: Number of parallel environments
-        save_dir: Directory to save models
+        save_dir: Base directory to save models
     """
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs('logs', exist_ok=True)
+    # Create algorithm-specific directory
+    algo_save_dir = os.path.join(save_dir, algorithm.upper())
+    algo_log_dir = os.path.join('logs', algorithm.upper())
+    os.makedirs(algo_save_dir, exist_ok=True)
+    os.makedirs(algo_log_dir, exist_ok=True)
     
     print(f"\n{'='*50}")
     print(f"Training {algorithm} on Ms. Pac-Man")
     print(f"{'='*50}")
     print(f"Total timesteps: {total_timesteps:,}")
     print(f"Parallel environments: {n_envs}")
+    print(f"Save directory: {algo_save_dir}")
     print(f"{'='*50}\n")
     
     # Create vectorized environment
@@ -52,17 +56,17 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
     eval_env = DummyVecEnv([lambda: make_atari_env()])
     eval_env = VecFrameStack(eval_env, n_stack=4)
     
-    # Callbacks
+    # Callbacks - save to algorithm-specific directory
     checkpoint_callback = CheckpointCallback(
         save_freq=10000 // n_envs,
-        save_path=save_dir,
-        name_prefix=f"{algorithm.lower()}_mspacman"
+        save_path=algo_save_dir,
+        name_prefix="checkpoint"
     )
     
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=save_dir,
-        log_path='logs',
+        best_model_save_path=algo_save_dir,
+        log_path=algo_log_dir,
         eval_freq=5000 // n_envs,
         n_eval_episodes=5,
         deterministic=True
@@ -127,7 +131,7 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
     )
     
     # Save final model
-    final_path = os.path.join(save_dir, f'{algorithm.lower()}_mspacman_final')
+    final_path = os.path.join(algo_save_dir, 'final_model')
     model.save(final_path)
     print(f"\nFinal model saved to: {final_path}")
     
@@ -148,9 +152,15 @@ def evaluate_sb3(algorithm='PPO', model_path=None, n_episodes=10, render=False):
         n_episodes: Number of episodes to evaluate
         render: Whether to render the environment
     """
-    # Default model path
+    # Default model path - now uses algorithm-specific folder
     if model_path is None:
-        model_path = f'models_sb3/{algorithm.lower()}_mspacman_final'
+        # Try best_model first, then final_model
+        best_path = f'models_sb3/{algorithm.upper()}/best_model'
+        final_path = f'models_sb3/{algorithm.upper()}/final_model'
+        if os.path.exists(best_path + '.zip'):
+            model_path = best_path
+        else:
+            model_path = final_path
     
     if not os.path.exists(model_path + '.zip'):
         print(f"Model not found: {model_path}.zip")
@@ -189,9 +199,14 @@ def demo_sb3(algorithm='PPO', model_path=None):
     Demo mode - runs continuously until Ctrl+C
     Similar to original A3C demo
     """
-    # Default model path
+    # Default model path - now uses algorithm-specific folder
     if model_path is None:
-        model_path = f'models_sb3/{algorithm.lower()}_mspacman_final'
+        best_path = f'models_sb3/{algorithm.upper()}/best_model'
+        final_path = f'models_sb3/{algorithm.upper()}/final_model'
+        if os.path.exists(best_path + '.zip'):
+            model_path = best_path
+        else:
+            model_path = final_path
     
     if not os.path.exists(model_path + '.zip'):
         print(f"Model not found: {model_path}.zip")
@@ -255,8 +270,14 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
         print("Please install imageio: pip install imageio")
         return
     
+    # Default model path - now uses algorithm-specific folder
     if model_path is None:
-        model_path = f'models_sb3/{algorithm.lower()}_mspacman_final'
+        best_path = f'models_sb3/{algorithm.upper()}/best_model'
+        final_path = f'models_sb3/{algorithm.upper()}/final_model'
+        if os.path.exists(best_path + '.zip'):
+            model_path = best_path
+        else:
+            model_path = final_path
     
     if not os.path.exists(model_path + '.zip'):
         print(f"Model not found: {model_path}.zip")
