@@ -299,13 +299,24 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
     else:
         model = DQN.load(model_path)
     
-    # Create environment WITHOUT AtariWrapper to get all lives
-    # AtariWrapper treats each life as a separate episode
+    # Create environment with AtariWrapper but terminal_on_life_loss=False
+    # This keeps the preprocessing but doesn't end episode on life loss
     import gymnasium as gym
     import ale_py
+    from stable_baselines3.common.atari_wrappers import (
+        NoopResetEnv, MaxAndSkipEnv, EpisodicLifeEnv, FireResetEnv, 
+        ClipRewardEnv, WarpFrame
+    )
     gym.register_envs(ale_py)
     
+    # Create env with manual wrappers (like AtariWrapper but without EpisodicLifeEnv)
     raw_env = gym.make('ALE/MsPacman-v5', render_mode='rgb_array')
+    raw_env = NoopResetEnv(raw_env, noop_max=30)
+    raw_env = MaxAndSkipEnv(raw_env, skip=4)
+    # NO EpisodicLifeEnv - we want all lives!
+    raw_env = WarpFrame(raw_env)  # Resize to 84x84 grayscale
+    raw_env = ClipRewardEnv(raw_env)
+    
     env = DummyVecEnv([lambda: raw_env])
     env = VecFrameStack(env, n_stack=4)
     
@@ -314,32 +325,34 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
     total_reward = 0
     step = 0
     game_over = False
+    lives = 3  # Ms. Pac-Man starts with 3 lives
     
     # Run until all lives lost (game over) or max_steps reached
     while not game_over and step < max_steps:
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         
-        # Get frame
-        frame = env.envs[0].render()
+        # Get frame from unwrapped env for proper rendering
+        frame = env.envs[0].unwrapped.render()
         if frame is not None:
             frames.append(frame)
         
         total_reward += reward[0]
         step += 1
         
-        # Check if truly game over (all lives lost)
-        # info[0] contains the info dict from the unwrapped env
+        # Check lives from info
         if 'lives' in info[0]:
-            lives = info[0]['lives']
-            if lives == 0:
+            current_lives = info[0]['lives']
+            if current_lives < lives:
+                print(f"  Lost a life! Lives remaining: {current_lives}")
+                lives = current_lives
+            if current_lives == 0:
                 game_over = True
         elif done[0]:
             game_over = True
         
         if step % 500 == 0:
-            lives_str = f", Lives: {info[0].get('lives', '?')}" if 'lives' in info[0] else ""
-            print(f"  Step {step}, Reward: {total_reward:.0f}{lives_str}")
+            print(f"  Step {step}, Reward: {total_reward:.0f}, Lives: {lives}")
     
     env.close()
     
