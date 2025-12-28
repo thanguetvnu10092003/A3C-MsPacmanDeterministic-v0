@@ -260,8 +260,16 @@ def demo_sb3(algorithm='PPO', model_path=None):
     env.close()
 
 
-def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gameplay.gif', max_steps=2000):
-    """Record gameplay from SB3 model"""
+def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gameplay.gif', max_steps=10000):
+    """
+    Record gameplay from SB3 model until episode ends (game over)
+    
+    Args:
+        algorithm: PPO, A2C, or DQN
+        model_path: Path to model (auto-detect if None)
+        output_path: Where to save GIF
+        max_steps: Safety limit to prevent infinite loops
+    """
     try:
         import imageio
     except ImportError:
@@ -281,7 +289,7 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
         print(f"Model not found: {model_path}.zip")
         return
     
-    print(f"Recording {algorithm} gameplay...")
+    print(f"Recording {algorithm} gameplay (until game over)...")
     
     # Load model
     if algorithm.upper() == 'PPO':
@@ -298,8 +306,11 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
     frames = []
     obs = env.reset()
     total_reward = 0
+    step = 0
+    done = False
     
-    for step in range(max_steps):
+    # Run until episode ends (game over) or max_steps reached
+    while not done and step < max_steps:
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         
@@ -309,11 +320,15 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
             frames.append(frame)
         
         total_reward += reward[0]
+        step += 1
+        done = done[0]
         
-        if done[0]:
-            break
+        if step % 500 == 0:
+            print(f"  Step {step}, Reward: {total_reward:.0f}")
     
     env.close()
+    
+    print(f"Episode finished! Steps: {step}, Total reward: {total_reward:.0f}")
     
     # Save
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
