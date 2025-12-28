@@ -299,32 +299,47 @@ def record_sb3(algorithm='PPO', model_path=None, output_path='recordings/sb3_gam
     else:
         model = DQN.load(model_path)
     
-    # Create environment
-    env = DummyVecEnv([lambda: make_atari_env('rgb_array')])
+    # Create environment WITHOUT AtariWrapper to get all lives
+    # AtariWrapper treats each life as a separate episode
+    import gymnasium as gym
+    import ale_py
+    gym.register_envs(ale_py)
+    
+    raw_env = gym.make('ALE/MsPacman-v5', render_mode='rgb_array')
+    env = DummyVecEnv([lambda: raw_env])
     env = VecFrameStack(env, n_stack=4)
     
     frames = []
     obs = env.reset()
     total_reward = 0
     step = 0
-    done = False
+    game_over = False
     
-    # Run until episode ends (game over) or max_steps reached
-    while not done and step < max_steps:
+    # Run until all lives lost (game over) or max_steps reached
+    while not game_over and step < max_steps:
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         
-        # Get frame from the raw environment
+        # Get frame
         frame = env.envs[0].render()
         if frame is not None:
             frames.append(frame)
         
         total_reward += reward[0]
         step += 1
-        done = done[0]
+        
+        # Check if truly game over (all lives lost)
+        # info[0] contains the info dict from the unwrapped env
+        if 'lives' in info[0]:
+            lives = info[0]['lives']
+            if lives == 0:
+                game_over = True
+        elif done[0]:
+            game_over = True
         
         if step % 500 == 0:
-            print(f"  Step {step}, Reward: {total_reward:.0f}")
+            lives_str = f", Lives: {info[0].get('lives', '?')}" if 'lives' in info[0] else ""
+            print(f"  Step {step}, Reward: {total_reward:.0f}{lives_str}")
     
     env.close()
     
