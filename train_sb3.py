@@ -18,21 +18,40 @@ gym.register_envs(ale_py)
 
 
 def make_atari_env(render_mode='rgb_array'):
-    """Create and wrap Atari environment"""
+    """Create and wrap Atari environment with EpisodicLifeEnv (standard training)"""
     env = gym.make('ALE/MsPacman-v5', render_mode=render_mode)
     env = AtariWrapper(env)
     return env
 
 
-def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='models_sb3'):
+def make_atari_env_full_game(render_mode='rgb_array'):
+    """
+    Create Atari environment WITHOUT EpisodicLifeEnv
+    This trains the agent to handle all 3 lives in one episode,
+    which helps it learn to recover from deaths better.
+    """
+    from stable_baselines3.common.atari_wrappers import (
+        NoopResetEnv, MaxAndSkipEnv, FireResetEnv, ClipRewardEnv, WarpFrame
+    )
+    env = gym.make('ALE/MsPacman-v5', render_mode=render_mode)
+    env = NoopResetEnv(env, noop_max=30)
+    env = MaxAndSkipEnv(env, skip=4)
+    # NO EpisodicLifeEnv - agent learns to handle all lives!
+    env = WarpFrame(env)  # Resize to 84x84 grayscale
+    env = ClipRewardEnv(env)
+    return env
+
+
+def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='models_sb3', full_game=False):
     """
     Train using Stable-Baselines3
     
     Args:
         algorithm: 'PPO', 'A2C', or 'DQN'
-        total_timesteps: Total training steps
+        total_timesteps: Total training steps (recommend 1M+ for good performance)
         n_envs: Number of parallel environments
         save_dir: Base directory to save models
+        full_game: If True, train on full games (all lives) instead of per-life episodes
     """
     # Create algorithm-specific directory (all files go here)
     algo_save_dir = os.path.join(save_dir, algorithm.upper())
@@ -43,11 +62,15 @@ def train_sb3(algorithm='PPO', total_timesteps=100000, n_envs=8, save_dir='model
     print(f"{'='*50}")
     print(f"Total timesteps: {total_timesteps:,}")
     print(f"Parallel environments: {n_envs}")
+    print(f"Full game mode: {full_game} {'(trains all 3 lives per episode)' if full_game else '(per-life episodes)'}")
     print(f"Save directory: {algo_save_dir}")
     print(f"{'='*50}\n")
     
     # Create vectorized environment
-    env = DummyVecEnv([lambda: make_atari_env() for _ in range(n_envs)])
+    if full_game:
+        env = DummyVecEnv([lambda: make_atari_env_full_game() for _ in range(n_envs)])
+    else:
+        env = DummyVecEnv([lambda: make_atari_env() for _ in range(n_envs)])
     env = VecFrameStack(env, n_stack=4)
     
     # Create eval environment
@@ -386,10 +409,12 @@ def main():
                         help='Number of evaluation episodes')
     parser.add_argument('--output', type=str, default='recordings/sb3_gameplay.gif',
                         help='Output path for recording')
+    parser.add_argument('--full-game', action='store_true',
+                        help='Train on full games (all 3 lives) - helps agent learn to recover from deaths')
     args = parser.parse_args()
     
     if args.mode == 'train':
-        train_sb3(args.algorithm, args.timesteps, args.envs)
+        train_sb3(args.algorithm, args.timesteps, args.envs, full_game=args.full_game)
     elif args.mode == 'eval':
         evaluate_sb3(args.algorithm, n_episodes=args.episodes)
     elif args.mode == 'demo':
